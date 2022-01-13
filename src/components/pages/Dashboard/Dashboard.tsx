@@ -13,7 +13,7 @@ const resType = t.type({
   caregivers: t.array(
     t.type({
       name: t.string,
-      patients: t.array(t.string),
+      patients: t.array(t.array(t.string)),
     })
   ),
 });
@@ -55,14 +55,18 @@ function useDashboard(params: { year: number }) {
     return axios
       .get<unknown>(endpoint(`reports/${params.year}`))
       .then((response) => {
-        if (!resType.is(response)) {
+        if (!resType.is(response.data)) {
           console.error(
             PathReporter.report(resType.decode(response)).join(", ")
           );
           throw new Error("Error");
         }
 
-        setState({ type: "Resolved", report: response, isRefreshing: false });
+        setState({
+          type: "Resolved",
+          report: response.data,
+          isRefreshing: false,
+        });
       })
       .catch(() => {
         setState({ type: "Rejected", error: "Error" });
@@ -77,7 +81,7 @@ function useDashboard(params: { year: number }) {
 }
 
 const Dashboard = () => {
-  const { state, actions } = useDashboard({ year: 2021 });
+  const { state, actions } = useDashboard({ year: new Date().getFullYear() });
 
   switch (state.type) {
     case "Initial":
@@ -87,7 +91,7 @@ const Dashboard = () => {
         <ErrorView message={state.error} onClickRetry={actions.fetchReport} />
       );
     case "Resolved":
-      return <TableView {...state} />;
+      return <TableView {...state} onClickRefresh={actions.fetchReport} />;
     default:
       assertNever(state);
       return <></>;
